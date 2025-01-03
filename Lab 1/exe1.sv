@@ -1,17 +1,4 @@
-//------------------------Output------------------------//
-// Default value of single_bit: 0
-// Default value of eight_bit: 00000000
-// Default value of my8bit_signed: xxxxxxxx
-// Default value of sign32bit: 0
-// Default value of unsign32bit: x
-// Default value of my_byte: 0
-// Default value of my_shortint: 0
-// Default value of my_longint: 0
-// => defaut of 4-state logic is 'x' (unknown) || defaut of 2-state logic is '0' (unknown)
-
-
-
-//-------------------------------------arthemetic right shift-------------------------------------//
+//-------------------------------------Arthemetic right shift-------------------------------------//
 module right_shift;
     // Bit: 1-bit value
     bit single_bit;
