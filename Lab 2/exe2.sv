@@ -1,14 +1,4 @@
 //-------------------------------------Queue-------------------------------------//
-•Declare an integer queue. Initialize it with five elements (0 to 4). Perform following operations on queue and print content after every operation:
-•Insert an element (value 19) at beginning without any method.
-•Insert an element (value 29) at beginning using predefined method.
-•Insert an element (value 39) at the end using predefined method.
-•Insert an element (value 49) at index 4.
-•Get 1st element in queue and compare with value 29.
-•Get last element in queue and compare with value 39.
-•Try to get value at index 3 without removing it from queue.
-•Delete an element at index 4 in queue.
-
 
 module queue;
     // Declare integer queue

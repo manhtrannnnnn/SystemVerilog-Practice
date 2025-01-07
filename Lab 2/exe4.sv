@@ -14,7 +14,7 @@ module associate_array;
         // Check Value exists at location 3, 23, 75 and 80
         $display("-----------------Check Value exists at location 3, 23, 75 and 80-----------------");
         $display("Value at location 3: %d", arr.exists(3));
-        $display("Value at location 23: %d", arr.exists(23));]);
+        $display("Value at location 23: %d", arr.exists(23));
         $display("Value at location 75: %d", arr.exists(75));
         $display("Value at location 80: %d", arr.exists(80));
 
