@@ -1,29 +1,53 @@
-//---------------------------------------------Add function and task to the module---------------------------------------------
-
+//---------------------------------------------Add function and task to the module---------------------------------------------//
 module adder;
-    // Declare input and output
-    int a, b;
-    int sum;
-    // Function definition
-    function int add(int a, int b);
+    int result;
+
+    function int add(input int a, input int b);
         return a + b;
     endfunction
 
-    // Task definition
-    task add(int a, int b);
-        sum  = a + b;
+    task add(input int a, input int b, output int result);
+        result = a + b;
     endtask
 
     initial begin
-        // Call function
-        sum = add(5, 10);
-        $display("Sum: %0d", sum);
-        // Call task 
-        add(5, 10); 
-        $display("Sum: %0d", sum);     
-		$finish;
+        result = add(3, 5); // function
+        $display("Function result: %0d", result);
+
+        add(4, 6, result); // task
+        $display("Task result: %0d", result);
     end
 endmodule
 
 
+
 // Error: Duplicate identifier: add 
+
+
+
+//---------------------------------------------Subprogram Overloading - Package---------------------------------------------//
+package my_pkg;
+
+    // Function 
+    function int add(input int a, input int b);
+        return a + b;
+    endfunction
+
+endpackage
+
+    //Task
+  	task add(input int a, input int b, output int result);
+        result = a + b;
+    endtask
+
+module top;
+    import my_pkg::add; 
+  	int result;
+  
+    initial begin
+        // Function
+        result = add(3, 5);
+        $display("Function result: %0d", result);
+
+    end
+endmodule

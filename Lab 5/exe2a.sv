@@ -4,22 +4,20 @@ interface arb_if(
 );
     bit asyn_rst_n;
     logic load, en;
-    logic [5:0] data;
+    logic [4:0] data;
     logic dir;
 
     // Testbench modport
     modport TEST(
-        input clk,
-        output asyn_rst_n, load, en,
-        input data,
-        input dir
+        input clk, dir, 
+        inout data,
+        output asyn_rst_n, load, en
     );
 
     // DUT modport
     modport DUT(
-        input clk, asyn_rst_n, load, en, 
-        inout data,
-        input dir
+        input clk, asyn_rst_n, load, en, dir,
+        inout data
     );
 
     // Monitor modport
@@ -30,27 +28,22 @@ endinterface
 
 //------------------------------------------------------5-bit counter------------------------------------------------------//
 module counter(arb_if.DUT arbif);
+    logic [4:0] data_tmp;
 
-    logic [5:0] tmp;
+    assign arbif.data = (arbif.dir) ? data_tmp : arbif.data;
+
     always_ff @(posedge arbif.clk or negedge arbif.asyn_rst_n) begin
         if(!arbif.asyn_rst_n) begin
-            arbif.data <= 5'b0;
+            data_tmp <= 5'b0;
+        end
+        else if(arbif.load && !arbif.dir) begin
+            data_tmp <= arbif.data;
+        end
+        else if(arbif.en) begin
+            data_tmp <= data_tmp + 1'b1;
         end
         else begin
-            if(arbif.load && !arbif.dir) begin
-                tmp <= arbif.data;
-            end
-            else if(arbif.en && arbif.dir) begin
-                if(tmp < 5'b11111) begin
-                    tmp <= tmp + 1'b1;
-                end
-                else if(arbif.data >= 5'b11111) begin
-                    arbif.data <= 5'b0;
-                end
-            end
-            else begin
-                arbif.data <= arbif.data;
-            end
+            data_tmp <= data_tmp;
         end
     end
 endmodule
@@ -58,9 +51,11 @@ endmodule
 
 //------------------------------------------------------Testbench------------------------------------------------------//
 program counter_tb(arb_if.TEST arbif);
+    logic [4:0] data_drive;
+    assign arbif.data = data_drive;
     initial begin
         // Initialize the inputs
-        arbif.asyn_rst_n = 1'b0; arbif.load = 1'b0; arbif.en = 1'b0; arbif.data = 5'b0; arbif.dir = 1'b0;
+        arbif.asyn_rst_n = 1'b0; arbif.load = 1'b0; arbif.en = 1'b0; data_drive = 5'b0; arbif.dir = 1'b0;
 
         // Test case 1
         $display("--------------------Test case 1 - Normal flow--------------------");
@@ -70,7 +65,7 @@ program counter_tb(arb_if.TEST arbif);
 
         // Test case 2
         $display("--------------------Test case 2 - Load new value--------------------");
-        @(posedge arbif.clk); arbif.asyn_rst_n = 1'b1; arbif.load = 1'b1; arbif.data = 5'b10101; arbif.dir = 1'b0;
+        @(posedge arbif.clk); arbif.asyn_rst_n = 1'b1; arbif.load = 1'b1; data_drive = 5'b10101; arbif.dir = 1'b0;
         @(posedge arbif.clk); arbif.dir = 1'b1;
         @(posedge arbif.clk); arbif.load = 1'b0;
         repeat(5) @(posedge arbif.clk);
@@ -88,7 +83,7 @@ program counter_tb(arb_if.TEST arbif);
 
         // Test case 5
         $display("--------------------Test case 5 - Roll over--------------------");
-        @(posedge arbif.clk); arbif.asyn_rst_n = 1'b1; arbif.en = 1'b1; arbif.load = 1'b1; arbif.data = 5'b11100; arbif.dir = 1'b0;
+        @(posedge arbif.clk); arbif.asyn_rst_n = 1'b1; arbif.en = 1'b1; arbif.load = 1'b1; data_drive = 5'b11100; arbif.dir = 1'b0;
         @(posedge arbif.clk); arbif.dir = 1'b1; arbif.load = 1'b0;
         repeat(10) @(posedge arbif.clk);
     end
