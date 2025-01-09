@@ -35,19 +35,24 @@ package my_pkg;
 
 endpackage
 
-    //Task
-  	task add(input int a, input int b, output int result);
-        result = a + b;
-    endtask
 
 module top;
     import my_pkg::add; 
   	int result;
-  
+
+    //Task
+    task add(input int a, input int b, output int result);
+        result = a + b;
+    endtask
+
     initial begin
+        
         // Function
-        result = add(3, 5);
+        result = my_pkg::add(3, 5);
         $display("Function result: %0d", result);
 
+        // Task
+        add(5,4, result);
+        $display("Task result: %0d", result);
     end
 endmodule
