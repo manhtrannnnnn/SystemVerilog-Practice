@@ -4,11 +4,12 @@ module associate_array;
     bit [7:0] arr[int];
     int i;
     int value;
+    randc int a;
 
     initial begin
         // Assign 50 value to the array
         for(i = 0; i < 50; i++) begin
-            arr[i] = $random % 100;
+            arr[a.randomize with {a < 10 && a > 0;}] = $random % 256;
         end
 
         // Check Value exists at location 3, 23, 75 and 80

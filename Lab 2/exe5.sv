@@ -44,28 +44,28 @@ module associate_array;
         // Check the value exists at index "x", "A", "p" and "T"
         $display("------------- Check the value exists at index 'x', 'A', 'p' and 'T' -------------");
         if(associative_array.exists("x")) begin
-            $display("Value at index 'x': %d", associative_array["a"]);
+            $display("Value at index 'x': %d", associative_array["x"]);
         end
         else begin
             $display("Value at index 'x' does not exist");
         end
 
         if(associative_array.exists("A")) begin
-            $display("Value at index 'A': %d", associative_array["b"]);
+            $display("Value at index 'A': %d", associative_array["A"]);
         end
         else begin
             $display("Value at index 'A' does not exist");
         end
 
         if(associative_array.exists("p")) begin
-            $display("Value at index 'p': %d", associative_array["c"]);
+            $display("Value at index 'p': %d", associative_array["p"]);
         end
         else begin
             $display("Value at index 'p' does not exist");
         end
 
         if(associative_array.exists("T")) begin
-            $display("Value at index 'T': %d", associative_array["d"]);
+            $display("Value at index 'T': %d", associative_array["T"]);
         end
         else begin
             $display("Value at index 'T' does not exist");

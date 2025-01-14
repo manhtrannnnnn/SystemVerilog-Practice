@@ -18,7 +18,7 @@ module string_name;
         $display("Upper Case: %s",  s.toupper());   
 
         // 5th character of the string and char
-      	$display("4th character of the string: %c",  s.getc(5));
+      	$display("4th character of the string: |%c|",  s.getc(4));
       	$display("String: %s", s);
 		
       	// Put a character at 5th position and re-display the string
@@ -30,7 +30,9 @@ module string_name;
         $display("String after deleting 7th character: %s", s);
       
       	// Print binary value in the string
-      	$display("String Value: %b", s);
+        foreach(s[i]) begin
+          $display("String value at %0d is %b", i, s[i]);
+        end
       
       	// Extract value and store in integer
         s = "12578_123_12abcd";
