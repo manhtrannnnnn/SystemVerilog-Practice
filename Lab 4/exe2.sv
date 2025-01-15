@@ -5,20 +5,12 @@ module function_array;
     byte queue[$];
 
   function dynamic_array_t dynamic_array_to_queue(input dynamic_array_t dynamic_array,
-                                                  input int min_limit = 0,
-                                                  input int max_limit = 20);
-    automatic byte queue[$];
-    if(max_limit > dynamic_array.size() || max_limit < 0) max_limit = dynamic_array.size();
-    if(min_limit < 0) min_limit = 0;
-    if(min_limit > max_limit) begin
-        $display("Invalid min_limit and max_limit");
-        min_limit = 0;
-        max_limit = dynamic_array.size();
-    end
+                                                  input byte min_limit = 0,
+                                                  input byte max_limit = 256);
+    byte queue[$];
 
-    for(int i = min_limit; i < max_limit; i = i + 1) begin
-        queue.push_back(dynamic_array[i]);
-    end
+    for
+    
     return queue;
   endfunction
 

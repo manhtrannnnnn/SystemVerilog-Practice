@@ -27,7 +27,6 @@ interface arb_if(
 endinterface
 
 //-------------------------------------------- DUT - Full adder 4bit--------------------------------------------//
-//-------------------------------------------- DUT - Full adder 4bit--------------------------------------------//
 module fulladder(
     input a, b, cin,
     output sum, cout
@@ -37,14 +36,48 @@ module fulladder(
 endmodule
 
 
-module adder4bit(arb_if.DUT arbif);
-  	assign arbif.sum = arbif.a + arbif.b + arbif.c;
+module adder4bit(
+    arb_if.DUT arbif // Sử dụng modport DUT của interface
+);
+    logic [3:0] carry;
+    fulladder FA0(
+        .a(arbif.a[0]),
+        .b(arbif.b[0]),
+        .cin(arbif.c),
+        .sum(arbif.sum[0]),
+        .cout(carry[0])
+    );
+
+    fulladder FA1(
+        .a(arbif.a[1]),
+        .b(arbif.b[1]),
+        .cin(carry[0]),
+        .sum(arbif.sum[1]),
+        .cout(carry[1])
+    );
+
+    fulladder FA2(
+        .a(arbif.a[2]),
+        .b(arbif.b[2]),
+        .cin(carry[1]),
+        .sum(arbif.sum[2]),
+        .cout(carry[2])
+    );
+
+    fulladder FA3(
+        .a(arbif.a[3]),
+        .b(arbif.b[3]),
+        .cin(carry[2]),
+        .sum(arbif.sum[3]),
+        .cout(arbif.sum[4]) 
+    );
 endmodule
+
 
 //--------------------------------------------Testbench--------------------------------------------//
 class Packet;
   	randc logic [3:0] a;
-  	rand logic [3:0] b;
+  	randc logic [3:0] b;
     rand bit c;
 
     constraint val{
@@ -54,18 +87,17 @@ endclass
 
 module adder4bit_tb(arb_if.TEST arbif);
     Packet pkg;
-    initial begin
-        pkg = new(); // Instantiate Packet
-      	#500;
-      	$finish;
-    end
-
-    always_ff @(posedge arbif.clk) begin
-      	if(pkg.randomize()) begin
-        	arbif.a = pkg.a;
-          	arbif.b = pkg.b;
-          	arbif.c = pkg.c;
-      	end
+  	initial begin
+      	pkg = new(); // Instantiate Packet
+      	repeat(300) begin
+              @(posedge arbif.clk);
+              if (pkg.randomize()) begin
+                  arbif.a = pkg.a;
+                  arbif.b = pkg.b;
+                  arbif.c = pkg.c;
+              end
+          end
+      	  $finish;
     end
 endmodule
 
@@ -92,6 +124,7 @@ module monitor(arb_if.MON arbif);
         if(failed == 0) begin
             $display("================================");
             $display("ALL TEST PASSED");
+          	$display("Total Testcases: %0d", passed);
             $display("================================");
         end
         else begin

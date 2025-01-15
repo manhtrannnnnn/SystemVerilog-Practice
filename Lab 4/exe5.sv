@@ -115,19 +115,20 @@ endmodule
 module parameterized_counter_tb;
     // Parameter
     parameter MAX_COUNTER = 7;
-    parameter type DATA_TYPE = bit[2:0];
+    parameter type DATA_TYPE = bit;
+    paramter type bitCouter = DATA_TYPE[2:0];
 
     // Inputs
     logic clk, rst_n, en, load;
-    DATA_TYPE data_in;
+    bitCouter data_in;
 
     // Outputs
-    DATA_TYPE counter;
+    bitCouter counter;
 
     // Instantiate the Unit Under Test (UUT)
     parameterized_counter #(
         .MAX_COUNTER(MAX_COUNTER),
-        .DATA_TYPE(DATA_TYPE)
+        .DATA_TYPE(bitCouter)
     ) uut (
         .clk(clk),
         .rst_n(rst_n),
