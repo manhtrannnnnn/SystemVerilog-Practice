@@ -67,8 +67,11 @@ module piso_tb(
     end
 
     // Monitor
-    always @(posedge clk) begin
-        $display("data_out: %0d", data_out);
+    initial begin
+        forever begin
+            @(posedge clk);
+             $display("[TIME: %0t] data_out: %0d" ,$time, data_out);
+        end
     end
 
     // Generate waveform
@@ -108,19 +111,23 @@ program piso_tb(
         $display("--------------------Test enable - 11101111--------------------");
         @(posedge clk); rst_n = 1'b1; load = 1'b1; en = 1'b1; data_in = 8'b11101111;
         @(posedge clk); load = 1'b0; en = 1'b0;
-        repeat(10) @(posedge clk);
+        repeat(10) @(posedge clk); en = 1'b1;
+        repeat(10) @(posedge clk); en = 1'b0;
 
         // Test reset
         $display("--------------------Test reset - 11101110--------------------");
         @(posedge clk); rst_n = 1'b1; load = 1'b1; en = 1'b1; data_in = 8'b11101110;
         @(posedge clk); load = 1'b0; en = 1'b0; rst_n = 1'b0;
-        repeat(10) @(posedge clk); en = 1'b1;
         repeat(10) @(posedge clk);
+        $finish;
     end
 
     // Monitor
     initial begin
-        $monitor("data_out: %0d", data_out);
+        forever begin
+            @(posedge clk);
+             $display("[TIME: %0t] data_out: %0d" ,$time, data_out);
+        end
     end
 
     // Generate waveform

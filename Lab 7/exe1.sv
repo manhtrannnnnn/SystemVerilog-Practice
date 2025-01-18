@@ -1,18 +1,22 @@
 //----------------------------------------BASE CLASS----------------------------------------//
 class packet #(parameter type DATA_TYPE = int);
-    DATA_TYPE length;
+    protected DATA_TYPE length;
     bit [1:0] saddr;
     bit [1:0] daddr;
-    DATA_TYPE data[];
+    protected DATA_TYPE data[];
+
+    local int val = 0;
+  	static int static_ctr  = 0;
+    int ctr = 0;
 
     // Constructor
-    function new(DATA_TYPE length);
+    function new(DATA_TYPE length = 10);
         this.length = length;
+      	this.data = new[this.length];
     endfunction
 
     // Randomize data
     task random();
-        this.data = new[this.length];
         foreach (this.data[i]) begin
             this.data[i] = $random % 128; 
         end
@@ -28,40 +32,104 @@ class packet #(parameter type DATA_TYPE = int);
         end
     endfunction
 
+    // Set local value
+  	function void set_val(int val);
+      this.val = val;
+    endfunction
+
+    // Get local value
+    function int get_val;
+      return this.val;
+    endfunction
+
+    // Static data testing
+    function void global_value_testing();
+        static_ctr++;
+        ctr++;
+    endfunction
+
     // Display
-    function void display();
-        $display("Length: %d, Source Address: %b, Destination Address: %b, Data: %p",
+    virtual function void display();
+      $display("Global Value: %0d, Local Value: %0d, Length: %d, Source Address: %b, Destination Address: %b, Data: %p", static_ctr, ctr,
                  this.length, this.saddr, this.daddr, this.data);
     endfunction
 endclass
 
+//----------------------------------------Inheritance - SUB CLASS----------------------------------------//
+class inherit_packet extends packet#(int);
+
+  // Construction
+  	function new(DATA_TYPE length = 10);
+      	super.new(length);
+      	$display("Constructor from Sub Class");
+    endfunction
+
+    function void display();
+      $display("Display from Subclass");
+    endfunction
+  
+
+endclass
+
 //----------------------------------------MODULE----------------------------------------//
 module exe1;
-
-    // Declare packet objects   
-    packet #(int) int_packet;
+  
+    int tmp = 0;
+    // Declare packet objects 
+    packet int_packet;
     packet #(bit [7:0]) bit7_packet;
     packet #(bit [3:0]) bit_4packet;
 
+    // Inheritance
+    inherit_packet inherit_pkg;
+
     initial begin
-        // Create packet 
+        // Declare int parameter
         int_packet = new(5);
+      	int_packet.random();
+        int_packet.set_addr(2'b10, 2'b01);
+        int_packet.display();
+        
+
+        // Declare 8 bits parameter
         bit7_packet = new(4);
+        bit7_packet.random();
+        bit7_packet.set_addr(2'b01, 2'b10);
+      	bit7_packet.display();
+
+      	// Display the value
         bit_4packet = new(3);
+        bit_4packet.random();
+        bit_4packet.set_addr(2'b11, 2'b11); // The same saddr and daddr;
+        bit_4packet.display();
 
-        // Random value
-        pkt1.random();
-        pkt1.set_addr(2'b00, 2'b01);
-        pkt2.random();
-        pkt2.set_addr(2'b01, 2'b10);
-        pkt3.random();
-        pkt3.set_addr(2'b10, 2'b11);
+        // Set and Get Local Value
+        int_packet.set_val(30'd120);
+        tmp = int_packet.get_val();
+        $display("Value of local value: %0d", tmp);
+        $display("Value of public value: %0b", int_packet.saddr);
 
-        pkt1.display();
-        pkt2.display();
-        pkt3.display();
+        // Inheritance 
+        inherit_pkg = new();
+        inherit_pkg.random();
+        inherit_pkg.display();
+      	inherit_pkg.set_val(20);
+        tmp = inherit_pkg.get_val();
+        $display("Value of local value: %0d", tmp);
+        $display("Value of public value: %0b", inherit_pkg.saddr);
+        inherit_packet.display();
 
-        // Display protected value
+        // Static variable
+        int_packet.global_value_testing();
+        int_packet.global_value_testing();
+        int_packet.global_value_testing();
+        int_packet.global_value_testing();
+        int_packet.global_value_testing();
+        int_packet.global_value_testing();
+        int_packet.global_value_testing();
 
+        int_packet.display();
+        bit7_packet.display();
+        bit_4packet.display();
     end
 endmodule
