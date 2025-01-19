@@ -37,7 +37,7 @@ module counter(arb_if.DUT arbif);
                 arbif.counter <= arbif.data_in;
             end
             else if(arbif.en) begin
-                arbif.counter <= arbif.counter + 1'b1;
+                arbif.counter <= arbif.counter + 1'b1;za
             end
             else begin
                 arbif.counter <= arbif.counter;
