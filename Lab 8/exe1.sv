@@ -71,7 +71,14 @@ endclass
 module sudoku_tb;
     parameter N = 6;
   	sudoku #(N) sd;
-  	int unsigned arr[N][N];
+  	int unsigned arr[N][N] = '{
+        '{0, 4, 0, 0, 0, 0},
+        '{0, 5, 6, 0, 0, 0},
+        '{5, 0, 0, 3, 2, 0},
+        '{0, 2, 3, 0, 0, 5},
+        '{0, 0, 0, 5, 1, 0},
+        '{0, 0, 0, 0, 6, 0}
+    };
 
     initial begin
         sd = new(arr);
