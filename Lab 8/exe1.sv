@@ -56,22 +56,31 @@ class sudoku #(parameter N = 9);
     }
 
 
-    // Display the result
+    // Display the result with blocks separated by '|'
     function void display();
         foreach (tmp[ROWS]) begin
             foreach (tmp[ROWS][COLS]) begin
                 $write("%0d ", tmp[ROWS][COLS]);
+                if ((COLS + 1) % COLS_BLOCK == 0 && COLS != N - 1) 
+                    $write("| ");
             end
             $write("\n");
+            if ((ROWS + 1) % ROWS_BLOCK == 0 && ROWS != N - 1) begin
+                for (int i = 0; i < N; i++) begin
+                  	$write("---");
+                end
+                $write("\n");
+            end
         end
     endfunction
+
 
 endclass
 
 module sudoku_tb;
-    parameter N = 6;
+    parameter N = 9;
   	sudoku #(N) sd;
-  	int unsigned arr[N][N] = '{
+  	int unsigned arr[N][N];
         '{0, 4, 0, 0, 0, 0},
         '{0, 5, 6, 0, 0, 0},
         '{5, 0, 0, 3, 2, 0},
@@ -86,3 +95,4 @@ module sudoku_tb;
         sd.display();
     end
 endmodule
+    

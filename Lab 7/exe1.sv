@@ -1,45 +1,35 @@
 //----------------------------------------BASE CLASS----------------------------------------//
-class packet #(parameter type DATA_TYPE = int);
-    protected DATA_TYPE length;
+virtual class packet #(parameter type DATA_TYPE = int);
+
+    DATA_TYPE length;
     bit [1:0] saddr;
     bit [1:0] daddr;
-    protected DATA_TYPE data[];
+    DATA_TYPE data[];
 
     local int val = 0;
-  	static int static_ctr  = 0;
+    static int static_ctr  = 0;
     int ctr = 0;
 
     // Constructor
-    function new(DATA_TYPE length = 10);
+    function new(DATA_TYPE length);
         this.length = length;
-      	this.data = new[this.length];
+        data = new[this.length];
     endfunction
 
-    // Randomize data
-    task random();
-        foreach (this.data[i]) begin
-            this.data[i] = $random % 128; 
-        end
-    endtask
+    // Randomize data (pure virtual, to be implemented in subclasses)
+    pure virtual function void random();
 
-    // Set source and destination 
-    function void set_addr(bit [1:0] saddr, bit [1:0] daddr);
-        this.saddr = saddr;
-        this.daddr = daddr;
-        if (this.saddr == this.daddr) begin
-            do this.daddr = $random % 4;
-            while (this.saddr == this.daddr);
-        end
-    endfunction
+    // Set source and destination (pure virtual, to be implemented in subclasses)
+    pure virtual function void set_addr(bit [1:0] saddr, bit [1:0] daddr);
 
     // Set local value
-  	function void set_val(int val);
-      this.val = val;
+    function void set_val(int val);
+        this.val = val;
     endfunction
 
     // Get local value
-    function int get_val;
-      return this.val;
+    function int get_val();
+        return this.val;
     endfunction
 
     // Static data testing
@@ -48,88 +38,102 @@ class packet #(parameter type DATA_TYPE = int);
         ctr++;
     endfunction
 
-    // Display
-    virtual function void display();
-      $display("Global Value: %0d, Local Value: %0d, Length: %d, Source Address: %b, Destination Address: %b, Data: %p", static_ctr, ctr,
-                 this.length, this.saddr, this.daddr, this.data);
-    endfunction
+    // Display packet details (pure virtual, to be implemented in subclasses)
+    pure virtual function void display();
+
 endclass
 
 //----------------------------------------Inheritance - SUB CLASS----------------------------------------//
-class inherit_packet extends packet#(int);
+class inherit_packet #(type DATA_TYPE = int) extends packet#(DATA_TYPE);
 
-  // Construction
-  	function new(DATA_TYPE length = 10);
-      	super.new(length);
-      	$display("Constructor from Sub Class");
+    // Constructor
+    function new(DATA_TYPE length = 10);
+        super.new(length);
     endfunction
 
+    // Override random
+    function void random();
+        foreach (this.data[i]) begin
+            this.data[i] = $random % 128; 
+        end
+    endfunction
+
+    // Override set_addr
+    virtual function void set_addr(bit [1:0] saddr, bit [1:0] daddr);
+        this.saddr = saddr;
+        this.daddr = daddr;
+        if (this.saddr == this.daddr) begin
+            do this.daddr = $random % 4;
+            while (this.saddr == this.daddr);
+        end
+    endfunction
+
+    // Override display
     function void display();
-      $display("Display from Subclass");
+        $display("[TIME: %0t]Global Value: %0d, Local Value: %0d, Length: %d, Source Address: %b, Destination Address: %b, Data: %p",
+                 $time, this.static_ctr, this.ctr, this.length, this.saddr, this.daddr, this.data);
     endfunction
-  
-
 endclass
 
 //----------------------------------------MODULE----------------------------------------//
 module exe1;
-  
-    int tmp = 0;
-    // Declare packet objects 
-    packet int_packet;
-    packet #(bit [7:0]) bit7_packet;
-    packet #(bit [3:0]) bit_4packet;
 
-    // Inheritance
-    inherit_packet inherit_pkg;
+    // Declare packet objects
+    packet int_pkg, bit7_pkg, bit4_pkg;
+
+    // Declare inheritance packet objects
+    inherit_packet #(int) int_packet;
+    inherit_packet #(int) bit7_packet;
+    inherit_packet #(int) bit4_packet;
+
+    // Mailbox and Semaphore
+    mailbox pkt_mailbox;
+    semaphore arbiter;
 
     initial begin
-        // Declare int parameter
-        int_packet = new(5);
-      	int_packet.random();
-        int_packet.set_addr(2'b10, 2'b01);
-        int_packet.display();
-        
-
-        // Declare 8 bits parameter
+        // Initialize objects, mailbox and semaphore
+        pkt_mailbox = new();
+        arbiter = new(1);
+        int_packet = new(5); 
         bit7_packet = new(4);
-        bit7_packet.random();
-        bit7_packet.set_addr(2'b01, 2'b10);
-      	bit7_packet.display();
+        bit4_packet = new(3);
+        int_pkg = int_packet;
+        bit7_pkg = bit7_packet;
+        bit4_pkg = bit4_packet;
 
-      	// Display the value
-        bit_4packet = new(3);
-        bit_4packet.random();
-        bit_4packet.set_addr(2'b11, 2'b11); // The same saddr and daddr;
-        bit_4packet.display();
+        // Declare int parameter packet
+        int_pkg.random();
+        int_pkg.set_addr(2'b10, 2'b01);
+        int_pkg.global_value_testing();
+        pkt_mailbox.put(int_pkg); 
 
-        // Set and Get Local Value
-        int_packet.set_val(30'd120);
-        tmp = int_packet.get_val();
-        $display("Value of local value: %0d", tmp);
-        $display("Value of public value: %0b", int_packet.saddr);
+        // Declare 8-bit parameter packet
+        bit7_pkg.random();
+        bit7_pkg.set_addr(2'b01, 2'b10);
+        bit7_pkg.global_value_testing();
+        pkt_mailbox.put(bit7_pkg);
 
-        // Inheritance 
-        inherit_pkg = new();
-        inherit_pkg.random();
-        inherit_pkg.display();
-      	inherit_pkg.set_val(20);
-        tmp = inherit_pkg.get_val();
-        $display("Value of local value: %0d", tmp);
-        $display("Value of public value: %0b", inherit_pkg.saddr);
-        inherit_packet.display();
+        // Declare 4-bit parameter packet
+        bit4_pkg.random();
+        bit4_pkg.set_addr(2'b11, 2'b11); // Same saddr and daddr
+        bit4_pkg.global_value_testing();
+        pkt_mailbox.put(bit4_pkg);
 
-        // Static variable
-        int_packet.global_value_testing();
-        int_packet.global_value_testing();
-        int_packet.global_value_testing();
-        int_packet.global_value_testing();
-        int_packet.global_value_testing();
-        int_packet.global_value_testing();
-        int_packet.global_value_testing();
-
-        int_packet.display();
-        bit7_packet.display();
-        bit_4packet.display();
+        // Semaphore arbiter for accessing packets
+        fork
+            process_packet();
+            process_packet();
+            process_packet();
+        join
     end
+
+    // Task to process packets
+    task process_packet();
+        packet pkt;
+        arbiter.get(1); 
+        pkt_mailbox.get(pkt); 
+        pkt.display(); 
+        #5;
+        arbiter.put(1); 
+    endtask
 endmodule
