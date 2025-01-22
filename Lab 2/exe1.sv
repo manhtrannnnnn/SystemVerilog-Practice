@@ -31,7 +31,6 @@ module sort;
             $display("dynamic_array[%0d]: %d", i, dynamic_array[i]);
         end
 
-
         // Predefined sort method
         sort_method.sort();
         $display("-------------After using Sort Method-------------");

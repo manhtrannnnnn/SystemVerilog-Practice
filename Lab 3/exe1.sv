@@ -3,6 +3,7 @@ module enum_calender;
     typedef enum int { January, February, March = 5, April, May, June, July, August, September = 15, Octorber, November, December} month;
     month current_month;
     initial begin
+      
         // Assign integer value to the month enum-variable(try in range and out of range)
         $display("-----------------Assign integer value to the month enum-variable-----------------");
         current_month = month'(1);

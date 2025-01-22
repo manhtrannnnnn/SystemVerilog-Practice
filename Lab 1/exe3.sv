@@ -30,7 +30,6 @@ module dynamic_array;
         foreach(dynamic_array[i]) begin
             $display("dynamic_array[%0d]: %h", i, dynamic_array[i]);
         end
-
         $display("-------------Array Size-------------");
         $display("Size of dynamic_array: %0d", dynamic_array.size());
     end
