@@ -1,4 +1,4 @@
-//----------------------------------------------Detect Sequence----------------------------------------------//
+// //----------------------------------------------Detect Sequence----------------------------------------------//
 module detect_sequence(
     input clk, rst_n,
     input data_in,
@@ -57,7 +57,7 @@ module detect_sequence(
     assign valid = (currentState == S01101);
 endmodule
 
-
+//----------------------------------------------Testbench----------------------------------------------//
 module tb_detect_sequence;
 
     // Inputs
@@ -79,12 +79,27 @@ module tb_detect_sequence;
     // Clock generation
     always #5 clk = ~clk; // 10ns clock period
 
+    // Coverage
+  	covergroup c_group @(posedge clk);
+      	option.per_instance=1;
+        cp1: coverpoint rst_n;
+      	cp2: coverpoint dut.currentState  { bins init = {6'b000001};
+                                            bins S1 = {6'b000010};
+                                            bins S01 = {6'b000100};
+                                            bins S101 = {6'b001000};
+                                            bins S1101 = {6'b010000};
+                                            bins S01101 = {6'b100000};
+                                           	bins others = default;}
+    endgroup
+  	c_group cg;
+
     // Test sequence
     initial begin
         // Initialize inputs
         clk = 0;
         rst_n = 0;
         data_in = 0;
+      	cg = new();
 
         // Reset the DUT
         #10 rst_n = 1;
@@ -123,10 +138,10 @@ module tb_detect_sequence;
     end
 
     // Monitor signals
-    // initial begin
-    //     $monitor("Time=%0t clk=%b rst_n=%b data_in=%b valid=%b state=%b",
-    //              $time, clk, rst_n, data_in, valid, dut.currentState);
-    // end
+    initial begin
+        $monitor("Time=%0t clk=%b rst_n=%b data_in=%b valid=%b state=%b",
+                 $time, clk, rst_n, data_in, valid, dut.currentState);
+    end
 
     // Generate waveform
     initial begin
@@ -134,52 +149,56 @@ module tb_detect_sequence;
         $dumpvars;
     end
 
+    // Sequences
+    sequence valid_state;
+        $onehot(dut.currentState) && (dut.currentState == 6'b000001 || dut.currentState == 6'b000010 || dut.currentState == 6'b000100 || dut.currentState == 6'b001000 || dut.currentState == 6'b010000 || dut.currentState == 6'b100000);
+    endsequence
+
+    sequence valid_transition;
+        (dut.currentState == 6'b000001 && (!data_in && dut.nextState == 6'b000001 || data_in && dut.nextState == 6'b000010)) ||
+        (dut.currentState == 6'b000010 && (!data_in && dut.nextState == 6'b000100 || data_in && dut.nextState == 6'b000010)) ||
+        (dut.currentState == 6'b000100 && (!data_in && dut.nextState == 6'b000001 || data_in && dut.nextState == 6'b001000)) ||
+        (dut.currentState == 6'b001000 && (!data_in && dut.nextState == 6'b000100 || data_in && dut.nextState == 6'b010000)) ||
+        (dut.currentState == 6'b010000 && (!data_in && dut.nextState == 6'b100000 || data_in && dut.nextState == 6'b000010)) ||
+        (dut.currentState == 6'b100000 && dut.nextState == 6'b000001);
+    endsequence
+
+    sequence valid_output;
+        dut.currentState == 6'b100000;
+    endsequence
+
+    sequence output_duration;
+        valid ##1 !valid; 
+    endsequence
+
+    // Properties
+    property check_valid_state;
+        @(posedge clk) valid_state;
+    endproperty
+
+    property check_valid_transitions;
+        @(posedge clk) valid_transition;
+    endproperty
+
+    property check_valid_output;
+        @(posedge clk) valid |-> valid_output;
+    endproperty
+
+    property check_output_duration;
+        @(posedge clk) valid |-> output_duration;
+    endproperty
+
     // Assertions
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            assert(dut.currentState == 6'b000001)
-                else $error("FSM is not in the initial state after reset!");
-        end else begin
-            // One-hot decode
-            assert($onehot(dut.currentState))
-                else $error("FSM is not in a valid one-hot encoded state!");
+    assert property (check_valid_state)
+        else $error("FSM is not in a valid one-hot encoded state!");
 
-            // Transitions valid
-            case (dut.currentState)
-                6'b000001: assert((dut.nextState == 6'b000001 && !data_in) || 
-                                  (dut.nextState == 6'b000010 && data_in))
-                           else $error("Invalid transition from init state!");
-                6'b000010: assert((dut.nextState == 6'b000010 && data_in) || 
-                                  (dut.nextState == 6'b000100 && !data_in))
-                           else $error("Invalid transition from S1 state!");
-                6'b000100: assert((dut.nextState == 6'b001000 && data_in) || 
-                                  (dut.nextState == 6'b000001 && !data_in))
-                           else $error("Invalid transition from S01 state!");
-                6'b001000: assert((dut.nextState == 6'b010000 && data_in) || 
-                                  (dut.nextState == 6'b000100 && !data_in))
-                           else $error("Invalid transition from S101 state!");
-                6'b010000: assert((dut.nextState == 6'b000010 && data_in) || 
-                                  (dut.nextState == 6'b100000 && !data_in))
-                           else $error("Invalid transition from S1101 state!");
-                6'b100000: assert(dut.nextState == 6'b000001)
-                           else $error("Invalid transition from S01101 state!");
-                default: assert(0) else $error("FSM is in an invalid state!");
-            endcase
+    assert property (check_valid_transitions)
+        else $error("Invalid transition");
 
-            // 3. Ensure there is no invalid state transition
-            assert(dut.currentState == 6'b000001 || dut.currentState == 6'b000010 || dut.currentState == 6'b000100 || dut.currentState == 6'b001000 || dut.currentState == 6'b010000 || dut.currentState == 6'b100000)
-                else $error("FSM is stuck or transitioning to an invalid state!");
+    assert property (check_valid_output)
+        else $error("Output valid is high for an incorrect state!");
 
-            // Valid high when sequence detect
-            assert(valid == (dut.currentState == 6'b100000))
-                else $error("Output valid is high for an incorrect state!");
-
-            // 5. Ensure output is not high for more than one clock cycle
-            if (valid)
-                assert(!valid || dut.currentState == 6'b100000)
-                    else $error("Output valid is high for more than one cycle!");
-        end
-    end
+    assert property (check_output_duration)
+        else $error("Output valid is high for more than one cycle!");
 
 endmodule
-

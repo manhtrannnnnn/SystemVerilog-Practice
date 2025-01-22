@@ -76,13 +76,27 @@ endmodule
 
 //--------------------------------------------Testbench--------------------------------------------//
 class Packet;
-  	randc logic [3:0] a;
-  	randc logic [3:0] b;
+  	rand logic [3:0] a;
+  	rand logic [3:0] b;
     rand bit c;
+    logic [8:0] tmp;
+    logic [8:0] q[$];
 
-    constraint val{
-        a != b;
+    constraint c1{
+      	!({a, b, c} inside {q});
     }
+
+  	function void pre_randomize();
+      if(q.size() == 300) begin
+        	q.delete();
+      end
+    endfunction
+  
+    function void post_randomize();
+        tmp = {a, b, c};
+        q.push_back(tmp);
+    endfunction
+
 endclass
 
 module adder4bit_tb(arb_if.TEST arbif);

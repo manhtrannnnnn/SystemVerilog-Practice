@@ -56,7 +56,7 @@ class sudoku #(parameter N = 9);
     }
 
 
-    // Display the result with blocks separated by '|'
+    // Display the result 
     function void display();
         foreach (tmp[ROWS]) begin
             foreach (tmp[ROWS][COLS]) begin
@@ -66,7 +66,7 @@ class sudoku #(parameter N = 9);
             end
             $write("\n");
             if ((ROWS + 1) % ROWS_BLOCK == 0 && ROWS != N - 1) begin
-                for (int i = 0; i < N; i++) begin
+              	for (int i = 0; i < N-1; i++) begin
                   	$write("---");
                 end
                 $write("\n");
@@ -74,13 +74,19 @@ class sudoku #(parameter N = 9);
         end
     endfunction
 
-
 endclass
 
 module sudoku_tb;
-    parameter N = 9;
-  	sudoku #(N) sd;
-  	int unsigned arr[N][N];
+    sudoku #(4) sd_4size;
+    int unsigned arr_4size[4][4] = '{
+        '{0, 0, 0, 3},
+        '{0, 0, 0, 1},
+        '{1, 0, 0, 0},
+        '{2, 0, 0, 0}
+    };
+
+  	sudoku #(6) sd_6size;
+  	int unsigned arr_6size[6][6] = '{
         '{0, 4, 0, 0, 0, 0},
         '{0, 5, 6, 0, 0, 0},
         '{5, 0, 0, 3, 2, 0},
@@ -89,10 +95,33 @@ module sudoku_tb;
         '{0, 0, 0, 0, 6, 0}
     };
 
+    sudoku #(9) sd_9size;
+    int unsigned arr_9size[9][9] = '{
+        '{0, 9, 8, 0, 0, 3, 7, 0, 6},
+        '{0, 0, 2, 0, 0, 0, 0, 8, 0},
+        '{0, 0, 0, 0, 0, 4, 1, 0, 9},
+        '{0, 0, 6, 0, 0, 0, 0, 0, 0},
+        '{0, 7, 0, 5, 0, 9, 0, 0, 0},
+        '{0, 0, 0, 0, 7, 0, 0, 0, 8},
+        '{1, 6, 0, 0, 0, 0, 5, 0, 0},
+        '{0, 0, 0, 0, 4, 0, 0, 0, 0},
+        '{0, 0, 3, 0, 2, 7, 0, 0, 0}
+    };
+
     initial begin
-        sd = new(arr);
-        assert(sd.randomize());
-        sd.display();
+        $display("-----------------Sudoku 4x4-----------------");
+        sd_4size = new(arr_4size);
+        assert(sd_4size.randomize());
+        sd_4size.display();
+
+        $display("-----------------Sudoku 6x6-----------------");
+        sd_6size = new(arr_6size);
+        assert(sd_6size.randomize());
+        sd_6size.display();
+
+        $display("-----------------Sudoku 9x9-----------------");
+        sd_9size = new(arr_9size);
+        assert(sd_9size.randomize());
+        sd_9size.display();
     end
 endmodule
-    
