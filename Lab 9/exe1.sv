@@ -124,7 +124,8 @@ module arbiter_tb;
     endproperty
 
     property check_grant_duration;
-        @(posedge clk) disable iff(!rst_n)
+        @(posedge clk) disable iff(!rst_n) 
+        $onehot({gnt1, gnt2, gnt3, gnt4}) |->
         (gnt1 |=> ##[1:2] !gnt1) and
         (gnt2 |=> ##[1:2] !gnt2) and
         (gnt3 |=> ##[1:2] !gnt3) and
@@ -140,25 +141,25 @@ module arbiter_tb;
     assert property(check_priority) begin
         $display("[PASSED] Valid Priority");
     end else begin
-       $display("[FAILED] Failed Priority"); 
+       $error("[FAILED] Failed Priority"); 
     end
 
     assert property(check_single_grant) begin
         $display("[PASSED] Valid single grant");
     end else begin
-        $display("[FAILED] Failed single grant");
+        $error("[FAILED] Failed single grant");
     end
 
     assert property(check_grant_duration) begin
         $display("[PASSED] Valid grant duration");
     end else begin
-        $display("[FAILED] Failed grant duration");
+        $error("[FAILED] Failed grant duration");
     end
 
     assert property(check_noreq_during_grant) begin
         $display("[PASSED] Valid No Request during grant");
     end else begin
-        $display("[FAILED] Failed No Request during grant");
+        $error("[FAILED] Failed No Request during grant");
     end
 
 endmodule
