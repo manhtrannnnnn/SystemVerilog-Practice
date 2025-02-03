@@ -2,7 +2,7 @@
 class sudoku #(parameter N = 9);
     localparam int COLS = N;
     localparam int ROWS = N;
-    localparam int COLS_BLOCK = (N % 2 == 0) ? N / 2: N / 3;
+    localparam int COLS_BLOCK = (N % 2 == 0) ? N / 2 : N / 3;
     localparam int ROWS_BLOCK = N / COLS_BLOCK;
 
     int unsigned puzzel[ROWS][COLS];

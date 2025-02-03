@@ -1,4 +1,5 @@
 //------------------------------------------------------Interface------------------------------------------------------//
+`timescale 1ns/1ps
 interface arb_if(
     input bit clk
 );
@@ -7,10 +8,17 @@ interface arb_if(
     logic [4:0] data_in;
     logic [4:0] counter;
 
-    // Clocking Block
+    // Clocking Block for Testbench
     clocking cb @(posedge clk);
-        default input #1ns output #2ns;
-        output negedge load;
+        default input #1 output #2;
+        output load;
+        input counter;
+    endclocking
+
+    // Clocking Block for Monitor
+    clocking cb1 @(posedge clk);
+        default input #1 output #2;
+        input load;
         input counter;
     endclocking
 
@@ -29,7 +37,8 @@ interface arb_if(
 
     // Monitor modport
     modport MONITOR(
-        clocking cb,
+        clocking cb1,
+        input load, counter, 
         input clk, asyn_rst_n, en, data_in
     );
 endinterface
@@ -96,8 +105,8 @@ endmodule
 //------------------------------------------------------Monitor------------------------------------------------------//
 
 module monitor(arb_if.MONITOR arbif);
-    always @(posedge arbif.cb) begin
-        $display("[Time: %0t] Reset: %b, Load: %b, Enable: %b, Data In: %0d || Counter: %0d", $time, arbif.asyn_rst_n, arbif.cb.load, arbif.en, arbif.data_in, arbif.cb.counter);
+  	always @(arbif.cb1) begin
+        $display("[Time: %0t] Reset: %b, Load: %b, Enable: %b, Data In: %0d || Counter: %0d", $time, arbif.asyn_rst_n, arbif.cb1.load, arbif.en, arbif.data_in, arbif.cb1.counter);
     end
 endmodule
 

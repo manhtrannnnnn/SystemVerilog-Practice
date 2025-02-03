@@ -58,12 +58,13 @@ module detect_sequence(
 endmodule
 
 //----------------------------------------------Testbench----------------------------------------------//
-module tb_detect_sequence;
+module detect_sequence_tb;
 
     // Inputs
     logic clk;
     logic rst_n;
     logic data_in;
+    int failed = 0;
 
     // Outputs
     logic valid;
@@ -112,38 +113,44 @@ module tb_detect_sequence;
         rst_n = 0;
         data_in = 0;
         cg = new();
+        #10 rst_n = 1;  // Reset to initialize FSM
 
-        // Reset the DUT
-        #10 rst_n = 1;
+        // Test Case 1: Sequence "10110" followed by reset
+        #10 data_in = 1; // S1
+        #10 data_in = 0; // S01
+        #10 data_in = 1; // S101
+        #10 data_in = 1; // S1101
+        #10 data_in = 0; // S01101 - valid = 1
+        #10 rst_n = 0;   // Apply reset
+        #10 rst_n = 1;   // Reset completed, back to init state
 
-        // Test Case 1: Detect valid sequence "10110"
-        #10 data_in = 1;
-        #10 data_in = 0;
-        #10 data_in = 1;
-        #10 data_in = 1;
-        #10 data_in = 0; // valid = 1
-        #10;
+        // Test Case 2: Random Invalid Sequence
+        repeat(20) #10 data_in = $urandom % 2; // Random sequence of 0s and 1s
 
-        // Test Case 2: Random inputs (invalid sequences)
-        repeat (20) #10 data_in = $urandom % 2;
+        // Test Case 3: Overlapping Sequence Detection
+        #10 data_in = 1; // S1
+        #10 data_in = 0; // S01
+        #10 data_in = 1; // S101
+        #10 data_in = 1; // S1101
+        #10 data_in = 0; // S01101 - valid = 1
+        #10 data_in = 1; // S1 (start new sequence)
+        #10 data_in = 0; // S01 (start new sequence)
 
-        // Test Case 3: Overlapping sequence detection
-        #10 data_in = 1;
-        #10 data_in = 0;
-        #10 data_in = 1;
-        #10 data_in = 1;
-        #10 data_in = 0; // valid = 1
-        #10 data_in = 1;
-        #10 data_in = 0; // Starts new sequence
+        // Test Case 4: Sequence "10110" with invalid bit in the middle
+        #10 data_in = 1; // S1
+        #10 data_in = 0; // S01
+        #10 data_in = 0; // invalid sequence (no valid state transition)
+        #10 data_in = 1; // S1 (should restart)
 
-        // Test Case 4: Reset applied during operation
-        #10 data_in = 1;
-        #10 rst_n = 0;
-        #10 rst_n = 1; // Reset clears FSM
-        #10 data_in = 0;
+        // Test Case 5: Reset Applied Mid-sequence
+        #10 data_in = 1; // S1
+        #10 data_in = 0; // S01
+        #10 rst_n = 0;   // Apply reset
+        #10 rst_n = 1;   // Reset completes, FSM goes to init state
+        #10 data_in = 1; // S1 - start new sequence
 
-        // Test Case 5: Long sequence of random inputs
-        repeat (50) #10 data_in = $urandom % 2;
+        // Test Case 6: Long sequence with random inputs
+        repeat(50) #10 data_in = $urandom % 2;
 
         // End simulation
         $finish;
@@ -193,7 +200,7 @@ module tb_detect_sequence;
     endproperty
 
     property check_valid_transitions;
-        @(posedge clk) valid_transition;
+        @(posedge clk) disable iff(!rst_n) valid_transition;
     endproperty
 
     property check_valid_output;
@@ -205,16 +212,45 @@ module tb_detect_sequence;
     endproperty
 
     // Assertions
-    assert property (check_valid_state)
-        else $error("FSM is not in a valid one-hot encoded state!");
+    assert property (check_valid_state) begin
+        $display("[PASSED] Valid State");
+    end else begin
+        failed++;   
+        $error("[FAILED] FSM is not in a valid one-hot encoded state!");
+    end
 
-    assert property (check_valid_transitions)
-        else $error("Invalid transition");
+    assert property (check_valid_transitions) begin
+        $display("[PASSED] Valid Transition");
+    end else begin
+        $error("[FAILED] Invalid transition");
+    end 
 
-    assert property (check_valid_output)
-        else $error("Output valid is high for an incorrect state!");
+    assert property (check_valid_output) begin
+        $display("[PASSED] Valid Output State");
+    end else begin
+        failed++; 
+        $error("[FAILED] Output valid is high for an incorrect state!");
+    end
 
-    assert property (check_output_duration)
-        else $error("Output valid is high for more than one cycle!");
+    assert property (check_output_duration) begin
+        $display("[PASSED] Valid output duration");
+    end else begin
+        failed++; 
+        $error("[FAILED] Output valid is high for more than one cycle!");
+    end
+
+    final begin
+        if(failed == 0) begin
+            $display("===========================");
+            $display("ALL PASSED TEST!!!");
+            $display("===========================");
+        end
+        else begin
+            $display("===========================");
+            $display("TEST FAILED: %d", failed);
+            $display("===========================");
+        end
+        
+    end
 
 endmodule

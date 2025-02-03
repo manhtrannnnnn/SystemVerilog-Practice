@@ -171,7 +171,7 @@ module tb_detect_sequence;
         valid ##1 !valid; 
     endsequence
 
-    // Properties
+    // Property
     property check_valid_state;
         @(posedge clk) valid_state;
     endproperty
@@ -185,7 +185,7 @@ module tb_detect_sequence;
     endproperty
 
     property check_output_duration;
-        @(posedge clk) valid |-> output_duration;
+        @(posedge clk) output_duration;
     endproperty
 
     // Assertions

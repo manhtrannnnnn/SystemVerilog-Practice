@@ -16,10 +16,10 @@ virtual class packet #(parameter type DATA_TYPE = int);
         data = new[this.length];
     endfunction
 
-    // Randomize data (pure virtual, to be implemented in subclasses)
+    // Randomize data 
     pure virtual function void random();
 
-    // Set source and destination (pure virtual, to be implemented in subclasses)
+    // Set source and destination
     pure virtual function void set_addr(bit [1:0] saddr, bit [1:0] daddr);
 
     // Set local value
