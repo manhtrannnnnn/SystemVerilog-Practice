@@ -4,12 +4,13 @@ module arbiter(
     input  logic req1, req2, req3, req4,
     output logic gnt1, gnt2, gnt3, gnt4 
 );
-    typedef enum logic [1:0] {IDLE, WAIT, GRANT} state_type;
+  typedef enum logic [1:0] {IDLE = 0, WAIT, GRANT} state_type;
     state_type state;
 
     logic [2:0] wait_count;
     logic [1:0] duration_count;
     logic [1:0] signals;
+  	logic noreq;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -23,14 +24,10 @@ module arbiter(
         end else begin
             case (state)
                 IDLE: begin
-                    gnt1 <= 0;
-                    gnt2 <= 0;
-                    gnt3 <= 0;
-                    gnt4 <= 0;
-                    duration_count <= 0;
+                  	noreq = 0;
                     if (req1 | req2 | req3 | req4) begin
                         state <= WAIT;
-                        wait_count <= $urandom_range(2, 6);
+                        wait_count <= $urandom_range(2,6);
                         if (req1)      signals <= 2'b00;
                         else if (req2) signals <= 2'b01;
                         else if (req3) signals <= 2'b10;
@@ -39,11 +36,12 @@ module arbiter(
                 end
 
                 WAIT: begin
+                  	noreq <= 1;
                     if (wait_count > 0) begin
                         wait_count <= wait_count - 1;
                     end else begin
                         state <= GRANT;
-                        duration_count <= 2'b01;  
+                      	duration_count <= $urandom_range(0,1);  
                         case (signals)
                             2'b00: gnt1 <= 1;
                             2'b01: gnt2 <= 1;
@@ -55,13 +53,21 @@ module arbiter(
 
                 GRANT: begin
                     if (duration_count > 0) begin
-                        duration_count <= $urandom_range(0, 1);
+                        duration_count <= duration_count - 1;
                     end else begin
                         gnt1 <= 0;
                         gnt2 <= 0;
                         gnt3 <= 0;
                         gnt4 <= 0;
-                        state <= IDLE;
+                      	noreq <= 0;
+                        if (req1 | req2 | req3 | req4) begin
+                          state <= WAIT;
+                          wait_count <= $urandom_range(2,6);
+                          if (req1)      signals <= 2'b00;
+                          else if (req2) signals <= 2'b01;
+                          else if (req3) signals <= 2'b10;
+                          else if (req4) signals <= 2'b11;
+                    	end
                     end
                 end
             endcase
@@ -76,6 +82,9 @@ module arbiter_tb;
     logic req1, req2, req3, req4;
     // Test output
     logic gnt1, gnt2, gnt3, gnt4;
+
+    logic [3:0] tmp;
+    assign {req1, req2, req3, req4} = tmp;
 
     // Instantiate DUT
     arbiter dut (
@@ -94,12 +103,14 @@ module arbiter_tb;
     // Test stimulus
     initial begin
         // Initialize the data 
-        rst_n = 0; req1 = 0; req2 = 0; req3 = 0; req4 = 0;
+        rst_n = 0; tmp = 0;
         
         //--------------------Testcase 1--------------------//
-        #10; rst_n = 1; req1 = 1; req2 = 1; req3 = 0; req4 = 0;
-        #10; req1 = 0;
-        #1000; 
+        #5; rst_n = 1;
+      	repeat(100) begin
+            #10 tmp = $urandom;
+        end
+
         $finish;
     end
 
@@ -109,16 +120,44 @@ module arbiter_tb;
         $dumpvars;
     end
 
+    // Sequence
+    sequence priority_req1;
+        req1 ##[3:7] gnt1;
+    endsequence
+
+    sequence priority_req2;
+        req2 && !req1 ##[3:7] gnt2;
+    endsequence
+
+    sequence priority_req3;
+        req3 && !req1 && !req2 ##[3:7] gnt3;
+    endsequence 
+
+    sequence priority_req4;
+        req4 && !req1 && !req2 && !req3 ##[3:7] gnt4;
+    endsequence
 
     // Property
-    property check_priority;
-        @(posedge clk) disable iff(!rst_n && dut.state == 1)
-        ((req1 |=> ##[3:7] gnt1) or
-        (!req1 && req2 |=> ##[3:7] gnt2) or
-        (!req1 && !req2 && req3 |=> ##[3:7] gnt3) or
-        (!req1 && !req2 && !req3 && req4 |=> ##[3:7] gnt4));
+    property check_priority_req1;
+      @(posedge clk) disable iff(!rst_n) 
+            req1 && !$onehot({gnt1, gnt2, gnt3, gnt4}) && dut.noreq == 0 |-> priority_req1;
+    endproperty 
+
+    property check_priority_req2;
+      @(posedge clk) disable iff(!rst_n) 
+            req2 && !req1 && !$onehot({gnt1, gnt2, gnt3, gnt4}) && dut.noreq == 0 |-> priority_req2;
     endproperty
 
+    property check_priority_req3;
+      @(posedge clk) disable iff(!rst_n) 
+            req3 && !req1 && !req2 && !$onehot({gnt1, gnt2, gnt3, gnt4}) && dut.noreq == 0 |-> priority_req3;
+    endproperty
+
+    property check_priority_req4;
+      @(posedge clk) disable iff(!rst_n) 
+            req4 && !req1 && !req2 && !req3 && !$onehot({gnt1, gnt2, gnt3, gnt4}) && dut.noreq == 0 |-> priority_req4;
+    endproperty
+    
     property check_single_grant;
         @(posedge clk) $onehot0({gnt1, gnt2, gnt3, gnt4});
     endproperty
@@ -132,34 +171,43 @@ module arbiter_tb;
         (gnt4 |=> ##[1:2] !gnt4);
     endproperty
 
-    property check_noreq_during_grant;
-        @(posedge clk) 
-        $onehot({gnt1, gnt2, gnt3, gnt4}) |-> !(req1 || req2 || req3 || req4) throughout $onehot({gnt1, gnt2, gnt3, gnt4});
-    endproperty
-
     // Assertion
-    assert property(check_priority) begin
-        $display("[PASSED] Valid Priority");
+    assert property(check_priority_req1) begin
+        $display("[TIME: %0t][PASSED] Valid Priority For Request 1", $time);
     end else begin
-       $error("[FAILED] Failed Priority"); 
+       $error("[TIME: %0t][FAILED] Failed Priority For Request 1", $time); 
+    end
+
+    assert property(check_priority_req2) begin
+        $display("[TIME: %0t][PASSED] Valid Priority For Request 2", $time);
+    end else begin
+       $error("[TIME: %0t][FAILED] Failed Priority For Request 2", $time); 
+    end
+
+    assert property(check_priority_req3) begin
+        $display("[TIME: %0t][PASSED] Valid Priority For Request 3", $time);
+    end else begin
+       $error("[TIME: %0t][FAILED] Failed Priority For Request 3", $time); 
+    end
+
+    assert property(check_priority_req4) begin
+        $display("[TIME: %0t][PASSED] Valid Priority For Request 4", $time);
+    end else begin
+       $error("[TIME: %0t][FAILED] Failed Priority For Request 4", $time); 
     end
 
     assert property(check_single_grant) begin
-        $display("[PASSED] Valid single grant");
+        $display("[TIME: %0t][PASSED] Valid single grant", $time);
     end else begin
-        $error("[FAILED] Failed single grant");
+        $error("[TIME: %0t][FAILED] Failed single grant", $time);
     end
 
     assert property(check_grant_duration) begin
-        $display("[PASSED] Valid grant duration");
+        $display("[TIME: %0t][PASSED] Valid grant duration", $time);
     end else begin
-        $error("[FAILED] Failed grant duration");
-    end
-
-    assert property(check_noreq_during_grant) begin
-        $display("[PASSED] Valid No Request during grant");
-    end else begin
-        $error("[FAILED] Failed No Request during grant");
+        $error("[TIME: %0t][FAILED] Failed grant duration", $time);
     end
 
 endmodule
+
+

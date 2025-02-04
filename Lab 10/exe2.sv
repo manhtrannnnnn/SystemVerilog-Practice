@@ -83,25 +83,27 @@ module detect_sequence_tb;
     // Coverage
   	covergroup c_group @(posedge clk);
       	option.per_instance=1;
-        cp1: coverpoint rst_n;
-      	cp2: coverpoint dut.currentState  { bins init = {6'b000001};
-                                            bins S1 = {6'b000010};
-                                            bins S01 = {6'b000100};
-                                            bins S101 = {6'b001000};
-                                            bins S1101 = {6'b010000};
-                                            bins S01101 = {6'b100000};
-                                           	bins others = default;
-                                            bins Init_to_S1 = (6'b000001 => 6'b000010);
-                                            bins Init_to_Init = (6'b000001 => 6'b000001);
-                                            bins S1_to_S1 = (6'b000010 => 6'b000010);
-                                            bins S1_to_S01 = (6'b000010 => 6'b000100);
-                                            bins S01_to_Init = (6'b000100 => 6'b000001);
-                                            bins S01_to_S101 = (6'b000100 => 6'b001000);
-                                            bins S101_to_S01 = (6'b001000 => 6'b000100);
-                                            bins S101_to_S1101 = (6'b001000 => 6'b010000);
-                                            bins S1101_to_S1 = (6'b010000 => 6'b000010);
-                                            bins S1101_to_S01101 = (6'b010000 => 6'b100000);
-                                            bins S01101_to_Init = (6'b100000 => 6'b000001);}
+        cp_rst: coverpoint rst_n;
+      	cp_state: coverpoint dut.currentState{  bins init = {6'b000001};
+                                                bins S1 = {6'b000010};
+                                                bins S01 = {6'b000100};
+                                                bins S101 = {6'b001000};
+                                                bins S1101 = {6'b010000};
+                                                bins S01101 = {6'b100000};
+                                                illegal_bins others = default;}
+
+        cp_transition: coverpoint dut.currentState{ bins Init_to_S1 = (6'b000001 => 6'b000010);
+                                                    bins Init_to_Init = (6'b000001 => 6'b000001);
+                                                    bins S1_to_S1 = (6'b000010 => 6'b000010);
+                                                    bins S1_to_S01 = (6'b000010 => 6'b000100);
+                                                    bins S01_to_Init = (6'b000100 => 6'b000001);
+                                                    bins S01_to_S101 = (6'b000100 => 6'b001000);
+                                                    bins S101_to_S01 = (6'b001000 => 6'b000100);
+                                                    bins S101_to_S1101 = (6'b001000 => 6'b010000);
+                                                    bins S1101_to_S1 = (6'b010000 => 6'b000010);
+                                                    bins S1101_to_S01101 = (6'b010000 => 6'b100000);
+                                                    bins S01101_to_Init = (6'b100000 => 6'b000001);
+                                                    }
         
     endgroup
   	c_group cg;
@@ -157,19 +159,20 @@ module detect_sequence_tb;
     end
 
     // Monitor signals
-    initial begin
-        forever begin
-            @(posedge clk);
-            $display("Time=%0t clk=%b rst_n=%b data_in=%b valid=%b state=%b",
-                 $time, clk, rst_n, data_in, valid, dut.currentState);
-        end
+    // initial begin
+    //     forever begin
+    //         @(posedge clk);
+    //         $display("Time=%0t clk=%b rst_n=%b data_in=%b valid=%b state=%b",
+    //              $time, clk, rst_n, data_in, valid, dut.currentState);
+    //     end
         
-    end
+    // end
 
     // Generate waveform
     initial begin
         $dumpfile("dump.vcd");
         $dumpvars;
+        $set_coverage_db_name("test.ucdb"); 
     end
 
     // Sequences
@@ -200,43 +203,43 @@ module detect_sequence_tb;
     endproperty
 
     property check_valid_transitions;
-        @(posedge clk) disable iff(!rst_n) valid_transition;
+        @(posedge clk) valid_transition;
     endproperty
 
     property check_valid_output;
-        @(posedge clk) valid |-> valid_output;
+        @(posedge clk) disable iff(!rst_n) valid |-> valid_output;
     endproperty
 
     property check_output_duration;
-        @(posedge clk) valid |-> output_duration;
+        @(posedge clk) disable iff(!rst_n) valid |-> output_duration;
     endproperty
 
     // Assertions
     assert property (check_valid_state) begin
-        $display("[PASSED] Valid State");
+        $display("[TIME: %0t][PASSED] Valid State", $time);
     end else begin
         failed++;   
-        $error("[FAILED] FSM is not in a valid one-hot encoded state!");
+        $error("[TIME: %0t][FAILED] FSM is not in a valid one-hot encoded state!", $time);
     end
 
     assert property (check_valid_transitions) begin
-        $display("[PASSED] Valid Transition");
+        $display("[TIME: %0t][PASSED] Valid Transition", $time);
     end else begin
-        $error("[FAILED] Invalid transition");
+        $error("[TIME: %0t][FAILED] Invalid transition", $time);
     end 
 
     assert property (check_valid_output) begin
-        $display("[PASSED] Valid Output State");
+        $display("[TIME: %0t][PASSED] Valid Output State", $time);
     end else begin
         failed++; 
-        $error("[FAILED] Output valid is high for an incorrect state!");
+        $error("[TIME: %0t][FAILED] Output valid is high for an incorrect state!", $time);
     end
 
     assert property (check_output_duration) begin
-        $display("[PASSED] Valid output duration");
+        $display("[TIME: %0t][PASSED] Valid output duration", $time);
     end else begin
         failed++; 
-        $error("[FAILED] Output valid is high for more than one cycle!");
+        $error("[TIME: %0t][FAILED] Output valid is high for more than one cycle!", $time);
     end
 
     final begin
