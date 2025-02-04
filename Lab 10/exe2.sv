@@ -83,28 +83,62 @@ module detect_sequence_tb;
     // Coverage
   	covergroup c_group @(posedge clk);
       	option.per_instance=1;
-        cp_rst: coverpoint rst_n;
-      	cp_state: coverpoint dut.currentState{  bins init = {6'b000001};
-                                                bins S1 = {6'b000010};
-                                                bins S01 = {6'b000100};
-                                                bins S101 = {6'b001000};
-                                                bins S1101 = {6'b010000};
-                                                bins S01101 = {6'b100000};
-                                                illegal_bins others = default;}
+        cp_rst: coverpoint rst_n{
+            bins active = {0};
+            bins inactive = {1};
+        }
 
-        cp_transition: coverpoint dut.currentState{ bins Init_to_S1 = (6'b000001 => 6'b000010);
-                                                    bins Init_to_Init = (6'b000001 => 6'b000001);
-                                                    bins S1_to_S1 = (6'b000010 => 6'b000010);
-                                                    bins S1_to_S01 = (6'b000010 => 6'b000100);
-                                                    bins S01_to_Init = (6'b000100 => 6'b000001);
-                                                    bins S01_to_S101 = (6'b000100 => 6'b001000);
-                                                    bins S101_to_S01 = (6'b001000 => 6'b000100);
-                                                    bins S101_to_S1101 = (6'b001000 => 6'b010000);
-                                                    bins S1101_to_S1 = (6'b010000 => 6'b000010);
-                                                    bins S1101_to_S01101 = (6'b010000 => 6'b100000);
-                                                    bins S01101_to_Init = (6'b100000 => 6'b000001);
-                                                    }
-        
+        cp_data_in: coverpoint data_in iff(rst_n) {
+            bins high = {1};
+            bins low = {0};
+        }
+
+      	cp_state: coverpoint dut.currentState iff(rst_n) { 
+            bins init = {6'b000001};
+            bins S1 = {6'b000010};
+            bins S01 = {6'b000100};
+            bins S101 = {6'b001000};
+            bins S1101 = {6'b010000};
+            bins S01101 = {6'b100000};
+            illegal_bins others = default;
+        }
+
+        cp_transition: coverpoint dut.currentState iff (rst_n) { 
+            bins Init_to_S1 = (6'b000001 => 6'b000010);
+            bins Init_to_Init = (6'b000001 => 6'b000001);
+            bins S1_to_S1 = (6'b000010 => 6'b000010);
+            bins S1_to_S01 = (6'b000010 => 6'b000100);
+            bins S01_to_Init = (6'b000100 => 6'b000001);
+            bins S01_to_S101 = (6'b000100 => 6'b001000);
+            bins S101_to_S01 = (6'b001000 => 6'b000100);
+            bins S101_to_S1101 = (6'b001000 => 6'b010000);
+            bins S1101_to_S1 = (6'b010000 => 6'b000010);
+            bins S1101_to_S01101 = (6'b010000 => 6'b100000);
+            bins S01101_to_Init = (6'b100000 => 6'b000001);
+
+            bins S1_to_Init = (6'b000010 => 6'b000001);
+            
+            bins S101_to_Init = (6'b001000 => 6'b000001);
+            bins S1101_to_Init = (6'b010000 => 6'b000001);
+            
+            illegal_bins Init[] = (6'b000001 => 6'b000100, 6'b001000, 6'b010000, 6'b100000);
+            illegal_bins S1[] = (6'b000010 => 6'b000001, 6'b001000, 6'b010000, 6'b100000);
+            illegal_bins S01[] = (6'b000100 => 6'b000010, 6'b000100, 6'b010000, 6'b100000);
+            illegal_bins S101[] = (6'b001000 => 6'b000001, 6'b000010, 6'b001000, 6'b100000);
+            illegal_bins S1101[] = (6'b010000 => 6'b000001, 6'b000100, 6'b001000, 6'b010000);
+            illegal_bins S01101[] = (6'b100000 => 6'b000010, 6'b000100, 6'b001000, 6'b010000, 6'b100000);
+        }
+
+        cp_rst_transition: cross cp_transition, cp_rst {
+            bins rst_S1 = binsof(cp_transition.S1_to_Init) && binsof(cp_rst.active);
+            bins rst_S01 = binsof(cp_transition.S01_to_Init) && binsof(cp_rst.active);
+            bins rst_S101 = binsof(cp_transition.S101_to_Init) && binsof(cp_rst.active);
+            bins rst_S1101 = binsof(cp_transition.S1101_to_Init) && binsof(cp_rst.active);
+            bins rst_S01101 = binsof(cp_transition.S01101_to_Init) && binsof(cp_rst.active);
+        }
+
+
+
     endgroup
   	c_group cg;
 
@@ -115,7 +149,7 @@ module detect_sequence_tb;
         rst_n = 0;
         data_in = 0;
         cg = new();
-        #10 rst_n = 1;  // Reset to initialize FSM
+        #15 rst_n = 1;  // Reset to initialize FSM
 
         // Test Case 1: Sequence "10110" followed by reset
         #10 data_in = 1; // S1
@@ -132,14 +166,20 @@ module detect_sequence_tb;
         // Test Case 3: Overlapping Sequence Detection
         #10 data_in = 1; // S1
         #10 data_in = 0; // S01
+        #10 rst_n = 0;   // Apply reset
+        #10 rst_n = 1;   // Reset completed, back to init state
         #10 data_in = 1; // S101
         #10 data_in = 1; // S1101
+        #10 rst_n = 0;   // Apply reset
+        #10 rst_n = 1;   // Reset completed, back to init state
         #10 data_in = 0; // S01101 - valid = 1
         #10 data_in = 1; // S1 (start new sequence)
         #10 data_in = 0; // S01 (start new sequence)
 
         // Test Case 4: Sequence "10110" with invalid bit in the middle
         #10 data_in = 1; // S1
+        #10 rst_n = 0;   // Apply reset
+        #10 rst_n = 1;   // Reset completed, back to init state
         #10 data_in = 0; // S01
         #10 data_in = 0; // invalid sequence (no valid state transition)
         #10 data_in = 1; // S1 (should restart)
@@ -152,7 +192,7 @@ module detect_sequence_tb;
         #10 data_in = 1; // S1 - start new sequence
 
         // Test Case 6: Long sequence with random inputs
-        repeat(50) #10 data_in = $urandom % 2;
+        repeat(50) #10 data_in = $urandom;
 
         // End simulation
         $finish;
@@ -172,7 +212,7 @@ module detect_sequence_tb;
     initial begin
         $dumpfile("dump.vcd");
         $dumpvars;
-        $set_coverage_db_name("test.ucdb"); 
+        // $set_coverage_db_name("test.ucdb"); 
     end
 
     // Sequences

@@ -100,6 +100,14 @@ module arbiter_tb;
         forever #5 clk = ~clk;
     end
 
+    // Coverage
+    covergroup c_group @(posedge clk);
+        option.per_instance=1;
+        cp_rst: coverpoint rst_n;
+        cp_combination_request: coverpoint tmp;
+        cp_wait_delay: coverpoint dut.
+    endgroup
+
     // Test stimulus
     initial begin
         // Initialize the data 
