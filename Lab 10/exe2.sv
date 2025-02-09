@@ -14,7 +14,7 @@ module detect_sequence(
     logic [5:0] currentState, nextState;
     
     // State memory
-    always_ff @(posedge clk or negedge rst_n) begin : MemoryState
+    always_ff @(posedge clk) begin : MemoryState
         if(!rst_n) begin
             currentState <= init;
         end
@@ -66,6 +66,9 @@ module detect_sequence_tb;
     logic data_in;
     int failed = 0;
 
+    logic [4:0] seq = 5'b10110;
+    integer i;
+
     // Outputs
     logic valid;
 
@@ -82,67 +85,77 @@ module detect_sequence_tb;
 
     // Coverage
   	covergroup c_group @(posedge clk);
-      	option.per_instance=1;
         cp_rst: coverpoint rst_n{
-            bins active = {0};
-            bins inactive = {1};
+            bins active = (0 => 1) ;
         }
 
-        cp_data_in: coverpoint data_in iff(rst_n) {
-            bins high = {1};
-            bins low = {0};
+        cp_data_in: coverpoint data_in  {
+            bins stable_high = (1 => 1);
+            bins high = (0 => 1);
+            bins low = (1 => 0);
+            bins stable_low = (0 => 0);
         }
 
-      	cp_state: coverpoint dut.currentState iff(rst_n) { 
+      	cp_state: coverpoint dut.currentState { 
             bins init = {6'b000001};
             bins S1 = {6'b000010};
             bins S01 = {6'b000100};
             bins S101 = {6'b001000};
             bins S1101 = {6'b010000};
             bins S01101 = {6'b100000};
-            illegal_bins others = default;
         }
 
-        cp_transition: coverpoint dut.currentState iff (rst_n) { 
+        cp_valid_transition: coverpoint dut.currentState iff (rst_n) { 
             bins Init_to_S1 = (6'b000001 => 6'b000010);
             bins Init_to_Init = (6'b000001 => 6'b000001);
             bins S1_to_S1 = (6'b000010 => 6'b000010);
             bins S1_to_S01 = (6'b000010 => 6'b000100);
+            bins S1_to_Init = (6'b000010 => 6'b000001);
             bins S01_to_Init = (6'b000100 => 6'b000001);
             bins S01_to_S101 = (6'b000100 => 6'b001000);
             bins S101_to_S01 = (6'b001000 => 6'b000100);
             bins S101_to_S1101 = (6'b001000 => 6'b010000);
+            bins S101_to_Init = (6'b001000 => 6'b000001);
             bins S1101_to_S1 = (6'b010000 => 6'b000010);
             bins S1101_to_S01101 = (6'b010000 => 6'b100000);
+            bins S1101_to_Init = (6'b010000 => 6'b0000001);
             bins S01101_to_Init = (6'b100000 => 6'b000001);
+        }
 
+        cp_invalid_transition: coverpoint dut.currentState iff (rst_n){
+            illegal_bins Init = (6'b000001 => 6'b000100, 6'b001000, 6'b010000, 6'b100000);
+            illegal_bins S1_1 = (6'b000010 => 6'b001000, 6'b010000, 6'b100000);
+            illegal_bins S01_1 = (6'b000100 => 6'b000010, 6'b000100, 6'b010000, 6'b100000);
+            illegal_bins S101_1 = (6'b001000 =>  6'b000010, 6'b001000, 6'b100000);
+            illegal_bins S1101_1 = (6'b010000 =>  6'b000100, 6'b001000, 6'b010000);
+            illegal_bins S01101_1 = (6'b100000 => 6'b000010, 6'b000100, 6'b001000, 6'b010000, 6'b100000);
+            // bins others = default;
+        }
+
+        cp_rst_state: coverpoint dut.currentState{
+            bins Init_to_Init = (6'b000001 => 6'b000001);
             bins S1_to_Init = (6'b000010 => 6'b000001);
-            
+            bins S01_to_Init = (6'b000100 => 6'b000001);
             bins S101_to_Init = (6'b001000 => 6'b000001);
             bins S1101_to_Init = (6'b010000 => 6'b000001);
-            
-            illegal_bins Init[] = (6'b000001 => 6'b000100, 6'b001000, 6'b010000, 6'b100000);
-            illegal_bins S1[] = (6'b000010 => 6'b000001, 6'b001000, 6'b010000, 6'b100000);
-            illegal_bins S01[] = (6'b000100 => 6'b000010, 6'b000100, 6'b010000, 6'b100000);
-            illegal_bins S101[] = (6'b001000 => 6'b000001, 6'b000010, 6'b001000, 6'b100000);
-            illegal_bins S1101[] = (6'b010000 => 6'b000001, 6'b000100, 6'b001000, 6'b010000);
-            illegal_bins S01101[] = (6'b100000 => 6'b000010, 6'b000100, 6'b001000, 6'b010000, 6'b100000);
+            bins S01101_to_Init = (6'b100000 => 6'b000001);
         }
 
-        cp_rst_transition: cross cp_transition, cp_rst {
-            bins rst_S1 = binsof(cp_transition.S1_to_Init) && binsof(cp_rst.active);
-            bins rst_S01 = binsof(cp_transition.S01_to_Init) && binsof(cp_rst.active);
-            bins rst_S101 = binsof(cp_transition.S101_to_Init) && binsof(cp_rst.active);
-            bins rst_S1101 = binsof(cp_transition.S1101_to_Init) && binsof(cp_rst.active);
-            bins rst_S01101 = binsof(cp_transition.S01101_to_Init) && binsof(cp_rst.active);
+        cp_rst_transition: cross cp_rst_state, cp_rst {
+          bins rst_Init = binsof(cp_rst_state.Init_to_Init) && binsof(cp_rst.active);
+          bins rst_S1 = binsof(cp_rst_state.S1_to_Init) && binsof(cp_rst.active);
+          bins rst_S01 = binsof(cp_rst_state.S01_to_Init) && binsof(cp_rst.active);
+          bins rst_S101 = binsof(cp_rst_state.S101_to_Init) && binsof(cp_rst.active);
+          bins rst_S1101 = binsof(cp_rst_state.S1101_to_Init) && binsof(cp_rst.active);
+          bins rst_S01101 = binsof(cp_rst_state.S01101_to_Init) && binsof(cp_rst.active);
         }
 
-
+        cp_state_transition_input: cross cp_valid_transition, cp_data_in;
 
     endgroup
   	c_group cg;
 
-     // Test sequence
+    // Test sequence
     initial begin
         // Initialize inputs
         clk = 0;
@@ -151,73 +164,98 @@ module detect_sequence_tb;
         cg = new();
         #15 rst_n = 1;  // Reset to initialize FSM
 
-        // Test Case 1: Sequence "10110" followed by reset
-        #10 data_in = 1; // S1
-        #10 data_in = 0; // S01
-        #10 data_in = 1; // S101
-        #10 data_in = 1; // S1101
-        #10 data_in = 0; // S01101 - valid = 1
-        #10 rst_n = 0;   // Apply reset
-        #10 rst_n = 1;   // Reset completed, back to init state
+        $display("---------------------Test case 1: Normal Flow---------------------");
+        data_in = 1; #10;
+        data_in = 0; #10;
+        data_in = 1; #10;
+        data_in = 1; #10;
+        data_in = 0; #20;
 
-        // Test Case 2: Random Invalid Sequence
-        repeat(20) #10 data_in = $urandom % 2; // Random sequence of 0s and 1s
+        $display("---------------------Test case 2: Reset for each State---------------------");
+        // S1 reset
+        data_in = 1; #20;
+        rst_n = 0; #10;
 
-        // Test Case 3: Overlapping Sequence Detection
-        #10 data_in = 1; // S1
-        #10 data_in = 0; // S01
-        #10 rst_n = 0;   // Apply reset
-        #10 rst_n = 1;   // Reset completed, back to init state
-        #10 data_in = 1; // S101
-        #10 data_in = 1; // S1101
-        #10 rst_n = 0;   // Apply reset
-        #10 rst_n = 1;   // Reset completed, back to init state
-        #10 data_in = 0; // S01101 - valid = 1
-        #10 data_in = 1; // S1 (start new sequence)
-        #10 data_in = 0; // S01 (start new sequence)
+        // S10 reset
+      	rst_n = 1; #10;
+        data_in = 1; #10;
+        data_in = 0; #20;
+        rst_n = 0; #10;
 
-        // Test Case 4: Sequence "10110" with invalid bit in the middle
-        #10 data_in = 1; // S1
-        #10 rst_n = 0;   // Apply reset
-        #10 rst_n = 1;   // Reset completed, back to init state
-        #10 data_in = 0; // S01
-        #10 data_in = 0; // invalid sequence (no valid state transition)
-        #10 data_in = 1; // S1 (should restart)
+        // S101 reset
+        rst_n = 1; #10;
+        data_in = 1; #10;
+        data_in = 0; #10;
+        data_in = 1; #20;
+        rst_n = 0; #10;
 
-        // Test Case 5: Reset Applied Mid-sequence
-        #10 data_in = 1; // S1
-        #10 data_in = 0; // S01
-        #10 rst_n = 0;   // Apply reset
-        #10 rst_n = 1;   // Reset completes, FSM goes to init state
-        #10 data_in = 1; // S1 - start new sequence
 
-        // Test Case 6: Long sequence with random inputs
-        repeat(50) #10 data_in = $urandom;
+        // S1011
+        rst_n = 1; #10;
+        data_in = 1; #10;
+        data_in = 0; #10;
+        data_in = 1; #10;
+        data_in = 1; #20;
+        rst_n = 0; #10;
 
+        // init 
+        rst_n = 1; #10;
+        data_in = 0; #10;
+        data_in = 0; #10;
+        data_in = 0; #20;
+        rst_n = 0; #10;
+        rst_n = 1; #10;
+
+        // S01101  reset
+        data_in = 1; #10;
+        data_in = 0; #10;
+        data_in = 1; #10;
+        data_in = 1; #10;
+        data_in = 0; #20;
+        rst_n = 0; #10;
+        rst_n = 1; #10;
+
+        $display("---------------------Test case 3: Random value---------------------");
+        repeat(10) begin
+            seq = $urandom;
+            // Feed the sequence bit by bit
+            for (i = 4; i >= 0; i = i - 1) begin
+                data_in = seq[i];
+                #10;
+            end
+        end
+
+        $display("---------------------Test case 3: S1101 to S1---------------------");
+        rst_n = 0; #10;
+        rst_n = 1; data_in = 1; #10;
+        data_in = 0; #10;
+        data_in = 1; #10;
+        data_in = 1; #10;
+        data_in = 1; #10;
+        #100;
         // End simulation
         $finish;
     end
 
     // Monitor signals
-    // initial begin
-    //     forever begin
-    //         @(posedge clk);
-    //         $display("Time=%0t clk=%b rst_n=%b data_in=%b valid=%b state=%b",
-    //              $time, clk, rst_n, data_in, valid, dut.currentState);
-    //     end
-        
-    // end
+    initial begin
+        forever begin
+            @(posedge clk);
+            $display("Time=%0t clk=%b rst_n=%b data_in=%b valid=%b state=%b",
+                 $time, clk, rst_n, data_in, valid, dut.currentState);
+        end 
+    end
 
     // Generate waveform
     initial begin
         $dumpfile("dump.vcd");
         $dumpvars;
-        // $set_coverage_db_name("test.ucdb"); 
+//         $set_coverage_db_name("test.ucdb"); 
     end
 
     // Sequences
     sequence valid_state;
-        $onehot(dut.currentState) && (dut.currentState == 6'b000001 || dut.currentState == 6'b000010 || dut.currentState == 6'b000100 || dut.currentState == 6'b001000 || dut.currentState == 6'b010000 || dut.currentState == 6'b100000);
+        $onehot0(dut.currentState) && (dut.currentState == 6'b000001 || dut.currentState == 6'b000010 || dut.currentState == 6'b000100 || dut.currentState == 6'b001000 || dut.currentState == 6'b010000 || dut.currentState == 6'b100000);
     endsequence
 
     sequence valid_transition;
@@ -239,7 +277,7 @@ module detect_sequence_tb;
 
     // Properties
     property check_valid_state;
-        @(posedge clk) valid_state;
+        @(posedge clk) disable iff(!rst_n) valid_state;
     endproperty
 
     property check_valid_transitions;
@@ -255,7 +293,7 @@ module detect_sequence_tb;
     endproperty
 
     // Assertions
-    assert property (check_valid_state) begin
+    assert property (check_valid_state) begin 
         $display("[TIME: %0t][PASSED] Valid State", $time);
     end else begin
         failed++;   

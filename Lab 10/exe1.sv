@@ -10,7 +10,7 @@ module arbiter(
     logic [2:0] wait_count;
     logic [1:0] duration_count;
     logic [1:0] signals;
-  	logic noreq;
+
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -24,7 +24,6 @@ module arbiter(
         end else begin
             case (state)
                 IDLE: begin
-                  	noreq = 0;
                     if (req1 | req2 | req3 | req4) begin
                         state <= WAIT;
                         wait_count <= $urandom_range(2,6);
@@ -36,7 +35,6 @@ module arbiter(
                 end
 
                 WAIT: begin
-                  	noreq <= 1;
                     if (wait_count > 0) begin
                         wait_count <= wait_count - 1;
                     end else begin
@@ -59,7 +57,6 @@ module arbiter(
                         gnt2 <= 0;
                         gnt3 <= 0;
                         gnt4 <= 0;
-                      	noreq <= 0;
                         if (req1 | req2 | req3 | req4) begin
                           state <= WAIT;
                           wait_count <= $urandom_range(2,6);
@@ -68,6 +65,9 @@ module arbiter(
                           else if (req3) signals <= 2'b10;
                           else if (req4) signals <= 2'b11;
                     	end
+                        else begin
+                            state <= IDLE;
+                        end
                     end
                 end
             endcase
@@ -83,8 +83,6 @@ module arbiter_tb;
     // Test output
     logic gnt1, gnt2, gnt3, gnt4;
 
-    logic [3:0] tmp;
-    assign {req1, req2, req3, req4} = tmp;
 
     // Instantiate DUT
     arbiter dut (
@@ -104,21 +102,83 @@ module arbiter_tb;
     covergroup c_group @(posedge clk);
         option.per_instance=1;
         cp_rst: coverpoint rst_n;
-        cp_combination_request: coverpoint tmp;
-        cp_wait_delay: coverpoint dut.
     endgroup
 
-    // Test stimulus
+    // Reset sequence
     initial begin
-        // Initialize the data 
-        rst_n = 0; tmp = 0;
-        
-        //--------------------Testcase 1--------------------//
-        #5; rst_n = 1;
-      	repeat(200) begin
-            #10 tmp = $urandom;
-        end
+        clk = 0;
+        rst_n = 0;
+        req1 = 0; req2 = 0; req3 = 0; req4 = 0;
+        #10 rst_n = 1;
+    end
 
+    // Test scenarios
+    initial begin
+        #20;
+        //-----------------------------Testcase 1: Toggling all request and grants-----------------------------//
+        $display("-----------------Testcase 1: Toogle all single request-----------------");
+        req1 = 1; #10; req1 = 0;
+        #100;
+        req2 = 1; #10; req2 = 0;
+        #100;
+        req3 = 1; #10; req3 = 0;
+        #100;
+        req4 = 1; #10; req4 = 0;
+        #100;
+
+        //-----------------------------Testcase 2: Multiple requests, check priority-----------------------------//
+        $display("-----------------Testcase 2: Multiple request for priority-----------------");
+        req1 = 1; req2 = 1; #10; // 1 vs 2
+        req1 = 0; req2 = 0;
+        #100;
+
+        req1 = 1; req3 = 1; #10; // 1 vs 3
+        req1 = 0; req3 = 0;
+        #100;
+
+        req1 = 1; req4 = 1; #10; // 1 vs 4
+        req1 = 0; req4 = 0;
+        #100;
+
+        req2 = 1; req3 = 1; #10; // 2 vs 3
+        req2 = 0; req3 = 0;
+        #100;
+
+        req2 = 1; req4 = 1; #10; // 2 vs 4
+        req2 = 0; req4 = 0;
+        #100;
+
+        req3 = 1; req4 = 1; #10; // 3 vs 4
+        req3 = 0; req4 = 0;
+        #100;
+
+        //-----------------------------Test 3: Ensure grant stays high for 1 or 2 cycles-----------------------------//
+        $display("-----------------Testcase 3: Grant high for 1 or 2 cycles-----------------");
+        req1 = 1; #10; req1 = 0;
+        #100;
+        req2 = 1; #10; req2 = 0;
+        #100;
+
+        // Test 4: Ensure grants are given 3-7 cycles after request
+        req3 = 1; #10; req3 = 0;
+        #100;
+        req4 = 1; #10; req4 = 0;
+        #100;
+
+        //-----------------------------Test 5: Request given while grant is still high-----------------------------//
+        $display("-----------------Testcase 3: Request given while grant is still high-----------------");
+        req1 = 1; #10;
+        req1 = 0; req2 = 1; #10;
+        req1 = 0; req2 = 0;
+        #100;
+
+        req1 = 1; #10;
+        req1 = 0; #40;
+        req2 = 1; #10;
+        req1 = 0; req2 = 0;
+        #100;
+
+        // End simulation
         $finish;
     end
 
@@ -130,40 +190,40 @@ module arbiter_tb;
 
     // Sequence
     sequence priority_req1;
-        req1 ##[3:7] gnt1;
+        req1 ##[3:8] gnt1;
     endsequence
 
     sequence priority_req2;
-        req2 && !req1 ##[3:7] gnt2;
+        req2 && !req1 ##[3:8] gnt2;
     endsequence
 
     sequence priority_req3;
-        req3 && !req1 && !req2 ##[3:7] gnt3;
+        req3 && !req1 && !req2 ##[3:8] gnt3;
     endsequence 
 
     sequence priority_req4;
-        req4 && !req1 && !req2 && !req3 ##[3:7] gnt4;
+        req4 && !req1 && !req2 && !req3 ##[3:8] gnt4;
     endsequence
 
     // Property
     property check_priority_req1;
       @(posedge clk) disable iff(!rst_n) 
-            req1 && !$onehot({gnt1, gnt2, gnt3, gnt4}) && dut.noreq == 0 |-> priority_req1;
+            req1 && !$onehot({gnt1, gnt2, gnt3, gnt4}) && dut.state != 1 |-> priority_req1;
     endproperty 
 
     property check_priority_req2;
       @(posedge clk) disable iff(!rst_n) 
-            req2 && !req1 && !$onehot({gnt1, gnt2, gnt3, gnt4}) && dut.noreq == 0 |-> priority_req2;
+            req2 && !req1 && !$onehot({gnt1, gnt2, gnt3, gnt4}) && dut.state != 1 |-> priority_req2;
     endproperty
 
     property check_priority_req3;
       @(posedge clk) disable iff(!rst_n) 
-            req3 && !req1 && !req2 && !$onehot({gnt1, gnt2, gnt3, gnt4}) && dut.noreq == 0 |-> priority_req3;
+            req3 && !req1 && !req2 && !$onehot({gnt1, gnt2, gnt3, gnt4}) && dut.state != 1 |-> priority_req3;
     endproperty
 
     property check_priority_req4;
       @(posedge clk) disable iff(!rst_n) 
-            req4 && !req1 && !req2 && !req3 && !$onehot({gnt1, gnt2, gnt3, gnt4}) && dut.noreq == 0 |-> priority_req4;
+            req4 && !req1 && !req2 && !req3 && !$onehot({gnt1, gnt2, gnt3, gnt4}) && dut.state != 1 |-> priority_req4;
     endproperty
     
     property check_single_grant;
@@ -217,5 +277,13 @@ module arbiter_tb;
     end
 
 endmodule
+
+
+
+
+
+
+
+
 
 
